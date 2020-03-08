@@ -1,52 +1,55 @@
-package main
+package maclookup
 
 import (
-	"bufio"
-	"fmt"
+	"errors"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 )
 
-func main() {
-	// read the mac
-	fmt.Print("mac address: ")
-	reader := bufio.NewReader(os.Stdin)
-	text, err := reader.ReadString('\n')
-	if err != nil {
-		panic(err)
-	}
-	mac := strings.ToLower(text)
+const URL = "https://api.macvendors.com/"
 
+func verification(mac string) error {
 	// check the mac is of one of the supported formats
 	pattern1 := regexp.MustCompile(`(?:[0-9a-f]{2}[-:\.]{1}){5}[0-9a-f]{2}`)
 	pattern2 := regexp.MustCompile(`(?:[0-9a-f]{4}[-:\.]{1}){2}[0-9a-f]{4}`)
 	pattern3 := regexp.MustCompile(`[0-9a-f]{12}`)
 	if !pattern1.MatchString(mac) && !pattern2.MatchString(mac) && !pattern3.MatchString(mac) {
-		panic("not a mac address")
+		return errors.New("wrong mac type")
 	}
+	return nil
+}
 
-	// api call to get the vendor
-	url := "https://api.macvendors.com/" + strings.Trim(mac, "\n")
+func request(mac string) (string, error) {
+	url := URL + strings.Trim(mac, "\n")
 	client := http.DefaultClient
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
-
 	resp, err := client.Do(request)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 	defer resp.Body.Close()
+	return string(b), nil
+}
 
-	// and the vendor iiiiiis....
-	fmt.Println(string(b))
+// Run main program function
+func Run(mac string) (string, error) {
+	err := verification(mac)
+	if err != nil {
+		return "", err
+	}
+	vendor, err := request(mac)
+	if err != nil {
+		return "", err
+	}
+	return vendor, err
 }
