@@ -7,10 +7,15 @@ import (
 )
 
 func main() {
-	mac := os.Args[1]
-	v, err := maclookup.Run(mac)
-	if err != nil {
-		panic(err)
+	if len(os.Args) > 1 {
+		mac := os.Args[1]
+		v, err := maclookup.GetVendorName(mac)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(v)
+	} else {
+		fmt.Println("err: please give MAC address")
 	}
-	fmt.Println(v)
+
 }

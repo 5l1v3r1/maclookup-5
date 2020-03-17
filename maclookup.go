@@ -1,6 +1,7 @@
 package maclookup
 
 import (
+	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -10,7 +11,13 @@ import (
 
 const URL = "https://api.macvendors.com/"
 
-func normalize(mac string) string {
+type ErrJSON struct {
+	Errors struct {
+		Detail string `json:"detail"`
+	} `json:"errors"`
+}
+
+func normalizing(mac string) string {
 	return strings.Trim(strings.ToLower(mac), "\n")
 }
 
@@ -26,26 +33,35 @@ func verification(mac string) error {
 }
 
 func request(mac string) (string, error) {
-	url := URL + normalize(mac)
+	url := URL + mac
 	client := http.DefaultClient
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
 	}
 	resp, err := client.Do(request)
-	defer resp.Body.Close()
 	if err != nil {
 		return "", err
 	}
+	defer resp.Body.Close()
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
+	if resp.StatusCode == 404 {
+		var e ErrJSON
+		err = json.Unmarshal(b, &e)
+		if err != nil {
+			return "", errors.New("can't decode JSON")
+		}
+		return "", errors.New(e.Errors.Detail)
+	}
 	return string(b), nil
 }
 
-// Run main program function
-func Run(mac string) (string, error) {
+// GetVendorName main program function
+func GetVendorName(mac string) (string, error) {
+	mac = normalizing(mac)
 	err := verification(mac)
 	if err != nil {
 		return "", err
